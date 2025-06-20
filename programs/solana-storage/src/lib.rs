@@ -14,17 +14,18 @@ pub mod solana_storage {
         Ok(())
     }
 
-    pub fn update_value(ctx: Context<UpdateStorage>) -> Result<()> {
-        // Increment the stored value in increment of 100, ensuring it does not exceed max_value
+    pub fn update_value(ctx: Context<UpdateStorage>) -> Result<()> {  
         let storage_balance = &mut ctx.accounts.storage_balance;
+        require!(storage_balance.stored_value < 1000, StorageError::MaxValueExceeded);
 
         // Increment the stored value in increment of 100
-        let new_value: u64 = storage_balance.stored_value.checked_add(100).ok_or(StorageError::MaxValueExceeded)?;
+        let new_value: u64 = storage_balance.stored_value + 100;
 
         // Ensure it does not exceed max_value
         if new_value > storage_balance.max_value {
-            storage_balance.stored_value = storage_balance.max_value; // Cap at max_value
-        } else {
+            return Err(StorageError::MaxValueExceeded.into());
+            
+            } else {
             storage_balance.stored_value = new_value;
         }
         Ok(())

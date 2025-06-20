@@ -63,8 +63,8 @@ describe('solana-storage', () => {
     )
   })
 
-  it('Caps the stored_value at max_value when incrementing beyond it', async () => {
-    for (let i = 1; i <= 12; i++) {
+  it('throws an error when incrementing beyond the bound set', async () => {
+    for (let i = 1; i <= 8; i++) {
       await program.methods
         .updateValue()
         .accounts({
@@ -74,20 +74,36 @@ describe('solana-storage', () => {
         })
         .rpc()
       fetchedAccount = await program.account.storedData.fetch(storageAccount)
-      if (i <= 8) {
-        expect(fetchedAccount.storedValue.toNumber()).to.equal(
-          i * 100 + 100,
-          `Stored value should be ${i * 100 + 100} after ${i} update(s)`
-        )
-
-      }
-      else expect(fetchedAccount.storedValue.toNumber()).to.equal(1000, "value should be capped at 1000")
-      console.log(
-        `Stored value after ${i} update(s): ${fetchedAccount.storedValue.toNumber()}`
+      expect(fetchedAccount.storedValue.toNumber()).to.equal(
+        i * 100 + 100,
+        `Stored value should be ${i * 100 + 100} after ${i} update(s)`
       )
+
+
     }
+    try {
+      await program.methods
+        .updateValue()
+        .accounts({
+          storageBalance: storageAccount,
+          admin: provider.wallet.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId
+        })
+        .rpc()
+      // If we get here, the transaction didn't fail as expected
+      throw new Error("Expected transaction to fail with MaxValueExceeded")
+    } catch (error) {
+      expect(error.message).to.include("MaxValueExceeded")
+    }
+
+    // Optionally, confirm the value is still capped
+    fetchedAccount = await program.account.storedData.fetch(storageAccount)
+    expect(fetchedAccount.storedValue.toNumber()).to.equal(1000, "value should be capped at 1000")
     console.log(
-      `Stored value after 12 updates: ${fetchedAccount.storedValue.toNumber()}`
+      `Stored value after error attempt: ${fetchedAccount.storedValue.toNumber()}`
+    )
+    console.log(
+      `Stored value after 9 updates is still: ${fetchedAccount.storedValue.toNumber()}`
     )
   })
 })
